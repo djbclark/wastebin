@@ -5,12 +5,12 @@ use axum::response::{IntoResponse, Redirect};
 use axum_extra::extract::cookie::SignedCookieJar;
 use serde::{Deserialize, Serialize};
 
-use crate::Page;
 use crate::cache::valid_extension;
 use crate::handlers::extract::{Theme, Uids};
 use crate::handlers::html::make_error;
 use crate::handlers::uid_cookie;
 use crate::i18n::Lang;
+use crate::{Highlighter, Page};
 use wastebin_core::db::{Database, write};
 use wastebin_core::id;
 
@@ -46,9 +46,11 @@ impl From<Entry> for write::Entry {
     }
 }
 
+#[expect(clippy::too_many_arguments)]
 pub async fn post<E: std::fmt::Debug>(
     State(page): State<Page>,
     State(db): State<Database>,
+    State(highlighter): State<Highlighter>,
     jar: SignedCookieJar,
     uids: Option<Uids>,
     theme: Option<Theme>,
@@ -71,6 +73,7 @@ pub async fn post<E: std::fmt::Debug>(
     }
 
     let mut entry: write::Entry = entry.into();
+    super::detect_extension(&highlighter, &mut entry);
     let mut uids = uids.map(|Uids(uids)| uids).unwrap_or_default();
 
     async {
@@ -193,6 +196,84 @@ mod tests {
             .send()
             .await?;
         assert_eq!(res.status(), StatusCode::OK);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn insert_detects_extension() -> Result<(), Box<dyn std::error::Error>> {
+        let client = Client::new(StoreCookies(false)).await;
+        let data = Entry {
+            text: String::from("#!/usr/bin/env python3\nprint('hi')\n"),
+            ..Default::default()
+        };
+
+        let res = client.post_form().form(&data).send().await?;
+        assert_eq!(res.status(), StatusCode::SEE_OTHER);
+        let location = res.headers().get("location").unwrap().to_str()?;
+        assert!(location.ends_with(".py"), "{location}");
+
+        let res = client
+            .get(location)
+            .header(header::ACCEPT, "text/html; charset=utf-8")
+            .send()
+            .await?;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert!(res.text().await?.contains("source python"));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn insert_burn_detects_extension() -> Result<(), Box<dyn std::error::Error>> {
+        let client = Client::new(StoreCookies(false)).await;
+        let data = Entry {
+            text: String::from("#!/bin/sh\necho hi\n"),
+            burn_after_reading: Some(String::from("on")),
+            ..Default::default()
+        };
+
+        let res = client.post_form().form(&data).send().await?;
+        let location = res.headers().get("location").unwrap().to_str()?;
+        assert!(
+            location.starts_with("/burn/") && location.ends_with(".sh"),
+            "{location}"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn insert_keeps_explicit_extension() -> Result<(), Box<dyn std::error::Error>> {
+        let client = Client::new(StoreCookies(false)).await;
+
+        // Plain Text in the picker submits `txt`, which must win over the shebang.
+        for extension in ["txt", "rs"] {
+            let data = Entry {
+                text: String::from("#!/usr/bin/env python3\n"),
+                extension: Some(extension.to_string()),
+                ..Default::default()
+            };
+
+            let res = client.post_form().form(&data).send().await?;
+            let location = res.headers().get("location").unwrap().to_str()?;
+            assert!(location.ends_with(&format!(".{extension}")), "{location}");
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn insert_without_match_stays_plain() -> Result<(), Box<dyn std::error::Error>> {
+        let client = Client::new(StoreCookies(false)).await;
+        let data = Entry {
+            text: String::from("print('hi')\n"),
+            ..Default::default()
+        };
+
+        let res = client.post_form().form(&data).send().await?;
+        let location = res.headers().get("location").unwrap().to_str()?;
+        assert!(!location.contains('.'), "{location}");
 
         Ok(())
     }

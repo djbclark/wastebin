@@ -5,6 +5,7 @@ use axum::extract::State;
 use axum_extra::extract::cookie::Key;
 use serde::{Deserialize, Serialize};
 
+use crate::Highlighter;
 use crate::cache::valid_extension;
 use crate::errors::{Error, JsonErrorResponse};
 use crate::handlers::extract::{sign_owner_token, verify_owner_token};
@@ -53,6 +54,7 @@ impl From<Entry> for write::Entry {
 pub async fn post(
     State(db): State<Database>,
     State(key): State<Key>,
+    State(highlighter): State<Highlighter>,
     Json(entry): Json<Entry>,
 ) -> Result<Json<RedirectResponse>, JsonErrorResponse> {
     if let Some(extension) = &entry.extension
@@ -76,6 +78,7 @@ pub async fn post(
 
     let mut entry: write::Entry = entry.into();
     entry.uid = Some(uid);
+    super::detect_extension(&highlighter, &mut entry);
 
     let (id, entry) = db.insert(entry).await.map_err(Error::Database)?;
     let path = format!("/{}", id.to_url_path(&entry));
@@ -304,6 +307,71 @@ mod tests {
             !res.headers().contains_key(reqwest::header::SET_COOKIE),
             "invalid token must not set a cookie",
         );
+
+        Ok(())
+    }
+
+    async fn insert_path(entry: &super::Entry) -> Result<String, Box<dyn std::error::Error>> {
+        let client = Client::new(StoreCookies(false)).await;
+        let res = client.post_json().json(entry).send().await?;
+        assert_eq!(res.status(), StatusCode::OK);
+        Ok(res.json::<super::RedirectResponse>().await?.path)
+    }
+
+    #[tokio::test]
+    async fn insert_detects_extension() -> Result<(), Box<dyn std::error::Error>> {
+        for (text, expected) in [
+            ("#!/usr/bin/env python3\nprint('hi')\n", ".py"),
+            ("#!/bin/bash\necho hi\n", ".sh"),
+            ("#!/usr/bin/env bash\necho hi\n", ".sh"),
+        ] {
+            let path = insert_path(&super::Entry {
+                text: text.to_string(),
+                ..Default::default()
+            })
+            .await?;
+            assert!(path.ends_with(expected), "{path} for {text:?}");
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn insert_without_match_stays_plain() -> Result<(), Box<dyn std::error::Error>> {
+        let path = insert_path(&super::Entry {
+            text: "just some text\n#!/bin/bash\n".to_string(),
+            ..Default::default()
+        })
+        .await?;
+        assert!(!path.contains('.'), "{path}");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn insert_keeps_explicit_extension() -> Result<(), Box<dyn std::error::Error>> {
+        for extension in ["txt", "rs"] {
+            let path = insert_path(&super::Entry {
+                text: "#!/usr/bin/env python3\n".to_string(),
+                extension: Some(extension.to_string()),
+                ..Default::default()
+            })
+            .await?;
+            assert!(path.ends_with(&format!(".{extension}")), "{path}");
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn insert_encrypted_skips_detection() -> Result<(), Box<dyn std::error::Error>> {
+        let path = insert_path(&super::Entry {
+            text: "#!/usr/bin/env python3\n".to_string(),
+            password: Some("secret".to_string()),
+            ..Default::default()
+        })
+        .await?;
+        assert!(!path.contains('.'), "{path}");
 
         Ok(())
     }

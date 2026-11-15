@@ -21,6 +21,9 @@ pub enum Error {
 
 const HIGHLIGHT_LINE_LENGTH_CUTOFF: usize = 2048;
 
+/// First lines longer than this are not considered for language detection.
+const DETECT_LINE_LENGTH_CUTOFF: usize = 256;
+
 #[derive(Clone)]
 pub struct Html(String);
 
@@ -191,6 +194,31 @@ fn line_tokens_to_classed_spans_md(
 }
 
 impl Highlighter {
+    /// Guess the file extension of `text` from an interpreter directive such as
+    /// `#!/usr/bin/env python3` or an Emacs mode line such as `# -*- mode: ruby -*-` on its
+    /// first line.
+    ///
+    /// Other first-line patterns of the syntax definitions are ignored because some of them
+    /// match ordinary prose. Returns `None` if nothing matches, so the caller can keep the paste
+    /// as plain text. A returned extension always maps back to the detected syntax.
+    #[must_use]
+    pub fn detect_extension(&self, text: &str) -> Option<&str> {
+        let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+        let line = text.lines().next()?;
+
+        if line.len() > DETECT_LINE_LENGTH_CUTOFF
+            || !(line.starts_with("#!") || line.contains("-*-"))
+        {
+            return None;
+        }
+
+        let syntax = self.syntax_set.find_syntax_by_first_line(line)?;
+        let extension = syntax.file_extensions.first()?;
+
+        (self.syntax_set.find_syntax_by_extension(extension)?.name == syntax.name)
+            .then_some(extension.as_str())
+    }
+
     /// Highlight `text` with the given file extension which is used to
     /// determine the right syntax. If not given or does not exist, plain text will be generated.
     pub fn highlight(&self, text: String, ext: Option<String>) -> Result<Html, Error> {
@@ -336,6 +364,59 @@ impl Html {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn detect_extension_from_interpreter_directive() {
+        let highlighter = Highlighter::default();
+
+        for (text, expected) in [
+            ("#!/usr/bin/env python3\nprint('hi')\n", "py"),
+            ("#!/usr/bin/python3\nprint('hi')", "py"),
+            ("#!/bin/bash\necho hi", "sh"),
+            ("#!/usr/bin/env bash\r\necho hi", "sh"),
+            ("#!/bin/sh\n", "sh"),
+            ("#!/usr/bin/env perl -w\n", "pl"),
+            ("\u{feff}#!/usr/bin/env ruby\n", "rb"),
+        ] {
+            assert_eq!(
+                highlighter.detect_extension(text),
+                Some(expected),
+                "{text:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn detect_extension_from_mode_line() {
+        let highlighter = Highlighter::default();
+        assert_eq!(
+            highlighter.detect_extension("# -*- mode: ruby -*-\nputs 1\n"),
+            Some("rb")
+        );
+    }
+
+    #[test]
+    fn detect_extension_misses() {
+        let highlighter = Highlighter::default();
+
+        for text in [
+            "",
+            "hello world\n#!/bin/bash\n",
+            "fn main() {}\n",
+            // Matched by other first-line patterns, which are deliberately ignored.
+            "From the docs: install it first\n",
+            "diff --git a/foo b/foo\n",
+            "<!DOCTYPE html>\n",
+            // No syntax for this interpreter.
+            "#!/usr/bin/env -S just --justfile\n",
+            " #!/bin/bash\n",
+        ] {
+            assert_eq!(highlighter.detect_extension(text), None, "{text:?}");
+        }
+
+        let long = format!("#!/bin/bash {}\n", "x".repeat(DETECT_LINE_LENGTH_CUTOFF));
+        assert_eq!(highlighter.detect_extension(&long), None);
+    }
 
     #[test]
     fn markdown_links() -> Result<(), Box<dyn std::error::Error>> {

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Pick the language of a paste created without one from a `#!` interpreter line
+  or an Emacs `-*- mode -*-` line on its first line, so that the paste URL
+  carries the matching extension. Pastes without such a line stay plain text,
+  an explicitly chosen language including plain text is always kept, and
+  encrypted pastes are not inspected.
+
 ### Fixed
 
 - Reject off-origin and scheme-relative `Referer` values when redirecting back

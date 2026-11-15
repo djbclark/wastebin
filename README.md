@@ -43,7 +43,8 @@ to released versions here:
 * comes as a single binary with low memory footprint
 * compresses pastes using [zstd](https://github.com/facebook/zstd)
 * syntax highlighting for > 170 languages with
-  [syntect](https://github.com/trishume/syntect)
+  [syntect](https://github.com/trishume/syntect), picking the language from a
+  `#!` interpreter line or an Emacs `-*- mode -*-` line if none was chosen
 * renders Markdown pastes to HTML, including GitHub-flavored tables, task lists
   and admonitions
 * comes with [nine color themes](https://matze.github.io/wastebin/) in light and
@@ -232,6 +233,13 @@ POST a new paste to the `/` endpoint with the following JSON payload:
   "owner": "<owner token from a previous insert, optional>"
 }
 ```
+
+If `extension` is omitted, wastebin looks at the first line of an unencrypted
+paste. An interpreter directive such as `#!/usr/bin/env python3` or an Emacs
+mode line such as `# -*- mode: ruby -*-` selects the matching extension, which
+then appears in the returned path. Otherwise the paste stays plain text. The
+same applies to pastes created in the web form without choosing a language. An
+explicit extension, including `txt`, is always kept.
 
 After successful insertion, you will receive a JSON response with the path to
 the newly created paste and a signed `owner` token authorizing deletion:
