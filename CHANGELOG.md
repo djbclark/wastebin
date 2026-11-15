@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add `WASTEBIN_BUTTON_LABELS` to show short, localized text labels next to the
+  navigation icons. Disabled by default.
+
 ### Fixed
 
 - Reject off-origin and scheme-relative `Referer` values when redirecting back

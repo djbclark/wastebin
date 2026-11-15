@@ -4,6 +4,8 @@ pub mod vars {
     pub const ADDRESS_PORT: &str = "WASTEBIN_ADDRESS_PORT";
     /// Base URL to use for the QR code link.
     pub const BASE_URL: &str = "WASTEBIN_BASE_URL";
+    /// Show text labels next to navigation icons.
+    pub const BUTTON_LABELS: &str = "WASTEBIN_BUTTON_LABELS";
     /// Number of cached items.
     pub const CACHE_SIZE: &str = "WASTEBIN_CACHE_SIZE";
     /// Path to the database file.
