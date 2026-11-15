@@ -11,6 +11,8 @@ use wastebin_core::env::vars::{
     self, ADDRESS_PORT, BASE_URL, BUTTON_LABELS, CACHE_SIZE, DATABASE_PATH, DRAFT_AUTOSAVE,
     HTTP_TIMEOUT, MAX_BODY_SIZE, PASTE_EXPIRATIONS, SIGNING_KEY,
 };
+
+use crate::page::CustomAssets;
 use wastebin_core::{db, expiration};
 use wastebin_highlight::{Theme, theme::ParseThemeNameError};
 
@@ -42,6 +44,10 @@ pub(crate) enum Error {
     ButtonLabels,
     #[error("failed to parse {DRAFT_AUTOSAVE}, expected `true` or `false`")]
     DraftAutosave,
+    #[error("failed to read {0} from {1}: {2}")]
+    CustomAsset(&'static str, String, std::io::Error),
+    #[error("failed to parse {0}, contains non-Unicode data")]
+    CustomAssetPath(&'static str),
     #[error("binding to both TCP and Unix socket is not possible")]
     BothListeners,
 }
@@ -187,6 +193,28 @@ pub fn expiration_set() -> Result<expiration::ExpirationSet, Error> {
     Ok(set)
 }
 
+/// Read the file named by the environment variable `var`, `None` if it is not set.
+fn custom_asset(var: &'static str) -> Result<Option<Vec<u8>>, Error> {
+    match std::env::var(var) {
+        Ok(path) if path.is_empty() => Ok(None),
+        Ok(path) => read_custom_asset(var, path).map(Some),
+        Err(VarError::NotUnicode(_)) => Err(Error::CustomAssetPath(var)),
+        Err(VarError::NotPresent) => Ok(None),
+    }
+}
+
+/// Operator-provided stylesheet and script, read once at startup.
+pub fn custom_assets() -> Result<CustomAssets, Error> {
+    Ok(CustomAssets {
+        css: custom_asset(vars::CUSTOM_CSS_PATH)?,
+        js: custom_asset(vars::CUSTOM_JS_PATH)?,
+    })
+}
+
+fn read_custom_asset(var: &'static str, path: String) -> Result<Vec<u8>, Error> {
+    std::fs::read(&path).map_err(|err| Error::CustomAsset(var, path, err))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,5 +230,33 @@ mod tests {
         }
 
         assert_eq!(parse_bool("maybe"), None);
+    }
+
+    #[test]
+    fn custom_asset_is_read() -> Result<(), Box<dyn std::error::Error>> {
+        let path =
+            std::env::temp_dir().join(format!("wastebin-custom-asset-{}.js", std::process::id()));
+        std::fs::write(&path, "console.log(1);")?;
+
+        let content = read_custom_asset(vars::CUSTOM_JS_PATH, path.display().to_string());
+        std::fs::remove_file(&path)?;
+        assert_eq!(content?, b"console.log(1);");
+
+        Ok(())
+    }
+
+    #[test]
+    fn missing_custom_asset_is_an_error() {
+        let err = read_custom_asset(
+            vars::CUSTOM_CSS_PATH,
+            String::from("/nonexistent/custom.css"),
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            err,
+            Error::CustomAsset(vars::CUSTOM_CSS_PATH, _, _)
+        ));
+        assert!(err.to_string().contains("/nonexistent/custom.css"));
     }
 }

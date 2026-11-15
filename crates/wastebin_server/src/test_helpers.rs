@@ -8,7 +8,7 @@ use reqwest::RequestBuilder;
 use tokio::net::TcpListener;
 
 use crate::cache::Cache;
-use crate::page;
+use crate::page::{self, CustomAssets};
 
 use wastebin_core::db::{self, Database};
 use wastebin_core::expiration::ExpirationSet;
@@ -30,41 +30,76 @@ pub(crate) struct DraftAutosave(pub bool);
 
 impl Client {
     pub(crate) async fn new(store_cookies: StoreCookies) -> Self {
-        Self::with_options(store_cookies, ButtonLabels(false), DraftAutosave(false)).await
+        Self::with_options(
+            store_cookies,
+            ButtonLabels(false),
+            DraftAutosave(false),
+            CustomAssets::default(),
+        )
+        .await
     }
 
     pub(crate) async fn with_button_labels(
         store_cookies: StoreCookies,
         button_labels: ButtonLabels,
     ) -> Self {
-        Self::with_options(store_cookies, button_labels, DraftAutosave(false)).await
+        Self::with_options(
+            store_cookies,
+            button_labels,
+            DraftAutosave(false),
+            CustomAssets::default(),
+        )
+        .await
     }
 
     pub(crate) async fn with_draft_autosave(
         store_cookies: StoreCookies,
         draft_autosave: DraftAutosave,
     ) -> Self {
-        Self::with_options(store_cookies, ButtonLabels(false), draft_autosave).await
+        Self::with_options(
+            store_cookies,
+            ButtonLabels(false),
+            draft_autosave,
+            CustomAssets::default(),
+        )
+        .await
+    }
+
+    pub(crate) async fn with_custom_assets(
+        store_cookies: StoreCookies,
+        custom_assets: CustomAssets,
+    ) -> Self {
+        Self::with_options(
+            store_cookies,
+            ButtonLabels(false),
+            DraftAutosave(false),
+            custom_assets,
+        )
+        .await
     }
 
     pub(crate) async fn with_options(
         store_cookies: StoreCookies,
         button_labels: ButtonLabels,
         draft_autosave: DraftAutosave,
+        custom_assets: CustomAssets,
     ) -> Self {
         let (db, handler) = Database::new(db::Open::Memory).expect("open memory database");
         let cache = Cache::new(NonZeroUsize::new(128).unwrap()).unwrap();
         let key = Key::generate();
         let expirations = "0".parse::<ExpirationSet>().unwrap();
-        let page = Arc::new(page::Page::new(
-            String::from("test"),
-            url::Url::parse("https://localhost:8888").unwrap(),
-            Theme::Ayu,
-            expirations,
-            1024 * 1024,
-            button_labels.0,
-            draft_autosave.0,
-        ));
+        let page = Arc::new(
+            page::Page::new(
+                String::from("test"),
+                url::Url::parse("https://localhost:8888").unwrap(),
+                Theme::Ayu,
+                expirations,
+                1024 * 1024,
+                button_labels.0,
+                draft_autosave.0,
+            )
+            .with_custom_assets(custom_assets),
+        );
         let state = crate::AppState {
             db,
             cache,

@@ -10,6 +10,10 @@ pub mod vars {
     pub const CACHE_SIZE: &str = "WASTEBIN_CACHE_SIZE";
     /// Keep the new-paste form's draft in the browser's session storage.
     pub const DRAFT_AUTOSAVE: &str = "WASTEBIN_DRAFT_AUTOSAVE";
+    /// Path to an operator-provided stylesheet included on every page.
+    pub const CUSTOM_CSS_PATH: &str = "WASTEBIN_CUSTOM_CSS_PATH";
+    /// Path to an operator-provided script included on every page.
+    pub const CUSTOM_JS_PATH: &str = "WASTEBIN_CUSTOM_JS_PATH";
     /// Path to the database file.
     pub const DATABASE_PATH: &str = "WASTEBIN_DATABASE_PATH";
     /// Time before a request times out.

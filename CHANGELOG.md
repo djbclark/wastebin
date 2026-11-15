@@ -10,6 +10,10 @@
   language and expiry in the tab's session storage, so a reload or a detour
   through an authenticating proxy does not lose the draft. Passwords and the
   encryption and burn toggles are never stored. Disabled by default.
+- Add `WASTEBIN_CUSTOM_CSS_PATH` and `WASTEBIN_CUSTOM_JS_PATH` to include an
+  operator-provided stylesheet and script on every page. They are served from
+  the same origin under content-hashed routes, so the Content Security Policy
+  stays strict.
 
 ### Fixed
 
