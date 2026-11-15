@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- Highlight pastes with a `just` or `justfile` extension, and `just` fenced code
+  blocks in Markdown, with the Makefile syntax, like bat does, until a dedicated
+  syntax is available.
+
 ### Fixed
 
 - Reject off-origin and scheme-relative `Referer` values when redirecting back
