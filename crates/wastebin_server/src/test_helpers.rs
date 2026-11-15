@@ -8,7 +8,7 @@ use reqwest::RequestBuilder;
 use tokio::net::TcpListener;
 
 use crate::cache::Cache;
-use crate::page;
+use crate::page::{self, CustomAssets};
 
 use wastebin_core::db::{self, Database};
 use wastebin_core::expiration::ExpirationSet;
@@ -24,17 +24,27 @@ pub(crate) struct StoreCookies(pub bool);
 
 impl Client {
     pub(crate) async fn new(store_cookies: StoreCookies) -> Self {
+        Self::with_custom_assets(store_cookies, CustomAssets::default()).await
+    }
+
+    pub(crate) async fn with_custom_assets(
+        store_cookies: StoreCookies,
+        custom_assets: CustomAssets,
+    ) -> Self {
         let (db, handler) = Database::new(db::Open::Memory).expect("open memory database");
         let cache = Cache::new(NonZeroUsize::new(128).unwrap()).unwrap();
         let key = Key::generate();
         let expirations = "0".parse::<ExpirationSet>().unwrap();
-        let page = Arc::new(page::Page::new(
-            String::from("test"),
-            url::Url::parse("https://localhost:8888").unwrap(),
-            Theme::Ayu,
-            expirations,
-            1024 * 1024,
-        ));
+        let page = Arc::new(
+            page::Page::new(
+                String::from("test"),
+                url::Url::parse("https://localhost:8888").unwrap(),
+                Theme::Ayu,
+                expirations,
+                1024 * 1024,
+            )
+            .with_custom_assets(custom_assets),
+        );
         let state = crate::AppState {
             db,
             cache,

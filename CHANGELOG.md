@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add `WASTEBIN_CUSTOM_CSS_PATH` and `WASTEBIN_CUSTOM_JS_PATH` to include an
+  operator-provided stylesheet and script on every page. They are served from
+  the same origin under content-hashed routes, so the Content Security Policy
+  stays strict.
+
 ### Fixed
 
 - Reject off-origin and scheme-relative `Referer` values when redirecting back

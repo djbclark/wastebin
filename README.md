@@ -201,6 +201,8 @@ run-time behavior:
 | `WASTEBIN_ADDRESS_PORT`           | Address and port to bind the server to.                       | `0.0.0.0:8088`        |
 | `WASTEBIN_BASE_URL`               | Base URL for the QR code display.                             |                       |
 | `WASTEBIN_CACHE_SIZE`             | Number of rendered items to cache.                            | `128`                 |
+| `WASTEBIN_CUSTOM_CSS_PATH`        | Path to a stylesheet that every page includes after the built-in styles, see [custom assets](#custom-assets). |  |
+| `WASTEBIN_CUSTOM_JS_PATH`         | Path to a script that every page includes after the built-in scripts, see [custom assets](#custom-assets). |  |
 | `WASTEBIN_DATABASE_PATH`          | Path to the sqlite3 database file.                            | `:memory:`            |
 | `WASTEBIN_HTTP_TIMEOUT`           | Maximum number of seconds a request is processed until wastebin responds with 408. | `5` |
 | `WASTEBIN_MAX_BODY_SIZE`          | Number of bytes to accept for POST requests.                  | `1048576`, i.e. 1 MB  |
@@ -216,6 +218,33 @@ run-time behavior:
 > `WASTEBIN_ADDRESS_PORT` and `WASTEBIN_UNIX_SOCKET_PATH` are mutually
 > exclusive, which means that setting both will lead to an error. Setting
 > neither will implicitly bind via TCP on `0.0.0.0:8088`.
+
+### Custom assets
+
+`WASTEBIN_CUSTOM_CSS_PATH` and `WASTEBIN_CUSTOM_JS_PATH` let an operator add
+one stylesheet and one script to every HTML page, for example to adjust the
+look or to integrate wastebin with an authenticating reverse proxy, without
+rewriting responses in the proxy. The files are read once at startup, so
+restart wastebin after changing them; wastebin refuses to start if a configured
+file cannot be read. Like the built-in assets they are served from memory under
+a content-hashed route, `/custom.<hash>.css` and `/custom.<hash>.js`, which
+changes with their content and may be cached for a long time. The stylesheet is
+included after the built-in ones and the script is deferred and runs after the
+built-in scripts.
+
+The Content Security Policy is unchanged: both files come from the same origin
+and are allowed by `script-src 'self'` and `style-src 'self'`. Inline scripts,
+inline event handlers and `eval` stay blocked, and `default-src 'none'` still
+keeps `fetch` and resources from other origins out. The policy does not stop a
+script from navigating the page or submitting a form, though, so it is no
+barrier against a malicious custom script.
+
+> [!WARNING]
+> A custom script runs with the full privileges of the wastebin origin on every
+> page, including the forms that take paste passwords and the pages that show
+> decrypted pastes. Only configure files you trust, keep them writable by
+> administrators only, not by the user running wastebin, and review them like
+> code you deploy.
 
 ### API endpoints
 

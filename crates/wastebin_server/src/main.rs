@@ -192,9 +192,14 @@ fn make_app(state: AppState, timeout: Duration, max_body_size: usize) -> Router 
         &state.page.assets.password_toggle_js,
     ];
 
+    let custom = [
+        state.page.assets.custom_css.as_ref(),
+        state.page.assets.custom_js.as_ref(),
+    ];
+
     let mut app = Router::new();
 
-    for asset in assets {
+    for asset in assets.into_iter().chain(custom.into_iter().flatten()) {
         app = app.route(asset.route(), asset_route(asset));
     }
 
@@ -248,6 +253,7 @@ async fn start() -> Result<(), Box<dyn std::error::Error>> {
     let expirations = env::expiration_set()?;
     let theme = env::theme()?;
     let title = env::title();
+    let custom_assets = env::custom_assets()?;
 
     let cache = Cache::new(cache_size)?;
     let (db, db_handler) = Database::new(method)?;
@@ -257,13 +263,10 @@ async fn start() -> Result<(), Box<dyn std::error::Error>> {
     tracing::debug!("restricting maximum body size to {max_body_size} bytes");
     tracing::debug!("enforcing a http timeout of {timeout:#?}");
 
-    let page = Arc::new(page::Page::new(
-        title,
-        base_url,
-        theme,
-        expirations,
-        max_body_size,
-    ));
+    let page = Arc::new(
+        page::Page::new(title, base_url, theme, expirations, max_body_size)
+            .with_custom_assets(custom_assets),
+    );
     let highlighter = Arc::new(wastebin_highlight::Highlighter::default());
     let state = AppState {
         db,

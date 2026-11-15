@@ -18,9 +18,11 @@
         <link rel="stylesheet" href="{{ page.assets.css.light.route() }}" media="(prefers-color-scheme: light)">
     {% endmatch %}
     <link rel="stylesheet" href="{{ page.assets.css.style.route() }}">
+    {% if let Some(custom_css) = page.assets.custom_css %}<link rel="stylesheet" href="{{ custom_css.route() }}">{% endif %}
     <link rel="icon" href="{{ page.assets.favicon.route() }}" type="image/png">
     <noscript><link rel="stylesheet" href="{{ page.assets.css.no_js.route() }}"></noscript>
     {% block head %}{% endblock %}
+    {% if let Some(custom_js) = page.assets.custom_js %}<script defer src="{{ custom_js.route() }}"></script>{% endif %}
   </head>
   <body{% block body_attrs %}{% endblock %}>
     {% block body %}
