@@ -24,6 +24,10 @@ const HIGHLIGHT_LINE_LENGTH_CUTOFF: usize = 2048;
 /// First lines longer than this are not considered for language detection.
 const DETECT_LINE_LENGTH_CUTOFF: usize = 256;
 
+/// Extensions without a syntax of their own and the extension of the syntax used instead. Like
+/// bat, highlight justfiles as Makefiles until a dedicated syntax is available.
+const EXTENSION_ALIASES: &[(&str, &str)] = &[("just", "make"), ("justfile", "make")];
+
 #[derive(Clone)]
 pub struct Html(String);
 
@@ -219,6 +223,16 @@ impl Highlighter {
             .then_some(extension.as_str())
     }
 
+    /// Find the syntax for `ext`, falling back to [`EXTENSION_ALIASES`].
+    fn find_syntax_by_extension(&self, ext: &str) -> Option<&SyntaxReference> {
+        self.syntax_set.find_syntax_by_extension(ext).or_else(|| {
+            EXTENSION_ALIASES
+                .iter()
+                .find(|(alias, _)| alias.eq_ignore_ascii_case(ext))
+                .and_then(|(_, target)| self.syntax_set.find_syntax_by_extension(target))
+        })
+    }
+
     /// Highlight `text` with the given file extension which is used to
     /// determine the right syntax. If not given or does not exist, plain text will be generated.
     pub fn highlight(&self, text: String, ext: Option<String>) -> Result<Html, Error> {
@@ -232,7 +246,6 @@ impl Highlighter {
         };
 
         let syntax_ref = self
-            .syntax_set
             .find_syntax_by_extension(ext.as_deref().unwrap_or("txt"))
             .unwrap_or_else(|| {
                 self.syntax_set
@@ -313,6 +326,7 @@ impl Highlighter {
         let syntax = self
             .syntax_set
             .find_syntax_by_token(token)
+            .or_else(|| self.find_syntax_by_extension(token))
             .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text());
 
         let mut generator = ClassedHTMLGenerator::new_with_class_style(
@@ -416,6 +430,24 @@ mod tests {
 
         let long = format!("#!/bin/bash {}\n", "x".repeat(DETECT_LINE_LENGTH_CUTOFF));
         assert_eq!(highlighter.detect_extension(&long), None);
+    }
+
+    #[test]
+    fn justfile_uses_makefile_syntax() -> Result<(), Box<dyn std::error::Error>> {
+        let highlighter = Highlighter::default();
+        let text = "# build it\nbuild:\n\techo hi\n";
+
+        for ext in ["just", "justfile", "Justfile"] {
+            let html = highlighter.highlight(text.into(), Some(ext.into()))?;
+            let html = html.into_inner();
+            assert!(html.contains("source makefile"), "{ext}");
+            assert!(html.contains("support function echo shell"), "{ext}");
+        }
+
+        let html = highlighter.highlight_code_block(text, "just")?;
+        assert!(html.contains("makefile"));
+
+        Ok(())
     }
 
     #[test]

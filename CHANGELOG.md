@@ -19,6 +19,9 @@
   carries the matching extension. Pastes without such a line stay plain text,
   an explicitly chosen language including plain text is always kept, and
   encrypted pastes are not inspected.
+- Highlight pastes with a `just` or `justfile` extension, and `just` fenced code
+  blocks in Markdown, with the Makefile syntax, like bat does, until a dedicated
+  syntax is available.
 
 ### Fixed
 
