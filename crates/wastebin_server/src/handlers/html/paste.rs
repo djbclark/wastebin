@@ -189,8 +189,62 @@ pub async fn get<E>(
 
 #[cfg(test)]
 mod tests {
-    use crate::test_helpers::{Client, StoreCookies};
+    use crate::test_helpers::{ButtonLabels, Client, StoreCookies};
     use reqwest::StatusCode;
+
+    async fn paste_page(client: &Client) -> Result<String, Box<dyn std::error::Error>> {
+        let data = crate::handlers::insert::form::Entry {
+            text: String::from("FooBarBaz"),
+            ..Default::default()
+        };
+
+        let res = client.post_form().form(&data).send().await?;
+        assert_eq!(res.status(), StatusCode::SEE_OTHER);
+        let location = res.headers().get("location").unwrap().to_str()?.to_owned();
+
+        Ok(client.get(&location).send().await?.text().await?)
+    }
+
+    #[tokio::test]
+    async fn button_labels_hidden_by_default() -> Result<(), Box<dyn std::error::Error>> {
+        let client = Client::new(StoreCookies(true)).await;
+        let body = paste_page(&client).await?;
+
+        // Icons keep their accessible names, but no visible labels are rendered.
+        assert!(body.contains(r#"aria-label="display raw file""#));
+        assert!(!body.contains("nav-button-label"), "body: {body}");
+
+        let body = client.get("/").send().await?.text().await?;
+        assert!(!body.contains("nav-button-label"), "body: {body}");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn button_labels_shown_when_enabled() -> Result<(), Box<dyn std::error::Error>> {
+        let client = Client::with_button_labels(StoreCookies(true), ButtonLabels(true)).await;
+        let body = paste_page(&client).await?;
+
+        for label in ["Home", "Delete", "Download", "Raw", "Copy", "QR"] {
+            assert!(
+                body.contains(&format!(r#"<span class="nav-button-label">{label}</span>"#)),
+                "missing label {label}: {body}"
+            );
+        }
+
+        // Accessible names are unchanged.
+        assert!(body.contains(r#"aria-label="display raw file""#));
+
+        let body = client.get("/").send().await?.text().await?;
+        for label in ["Home", "Upload"] {
+            assert!(
+                body.contains(&format!(r#"<span class="nav-button-label">{label}</span>"#)),
+                "missing label {label}: {body}"
+            );
+        }
+
+        Ok(())
+    }
 
     #[tokio::test]
     async fn unknown_paste() -> Result<(), Box<dyn std::error::Error>> {

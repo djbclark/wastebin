@@ -248,6 +248,7 @@ async fn start() -> Result<(), Box<dyn std::error::Error>> {
     let expirations = env::expiration_set()?;
     let theme = env::theme()?;
     let title = env::title();
+    let button_labels = env::button_labels()?;
 
     let cache = Cache::new(cache_size)?;
     let (db, db_handler) = Database::new(method)?;
@@ -263,6 +264,7 @@ async fn start() -> Result<(), Box<dyn std::error::Error>> {
         theme,
         expirations,
         max_body_size,
+        button_labels,
     ));
     let highlighter = Arc::new(wastebin_highlight::Highlighter::default());
     let state = AppState {

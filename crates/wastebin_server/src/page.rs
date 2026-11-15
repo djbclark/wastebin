@@ -21,10 +21,13 @@ pub(crate) struct Page {
     pub base_url: Url,
     pub expirations: Vec<Expiration>,
     pub max_body_size: usize,
+    /// Show text labels next to the navigation icons.
+    pub button_labels: bool,
 }
 
 impl Page {
     /// Create new page meta data from generated  `assets`, `title` and optional `base_url`.
+    /// `button_labels` enables text labels next to the navigation icons.
     #[must_use]
     pub fn new(
         title: String,
@@ -32,6 +35,7 @@ impl Page {
         theme: Theme,
         expirations: ExpirationSet,
         max_body_size: usize,
+        button_labels: bool,
     ) -> Self {
         let assets = Assets::new(theme);
         let expirations = expirations.into_inner();
@@ -43,6 +47,7 @@ impl Page {
             base_url,
             expirations,
             max_body_size,
+            button_labels,
         }
     }
 }

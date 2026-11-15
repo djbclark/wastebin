@@ -104,6 +104,12 @@ header {
   stroke-width: 1.5;
 }
 
+.nav-button-label {
+  margin-left: 6px;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
 .nav-button-danger {
   color: var(--danger);
 }
@@ -1214,6 +1220,10 @@ textarea:focus-visible {
   }
 
   .theme-switcher span {
+    display: none;
+  }
+
+  .nav-button-label {
     display: none;
   }
 

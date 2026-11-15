@@ -22,8 +22,18 @@ pub(crate) struct Client {
 /// Determine if the client should store cookies.
 pub(crate) struct StoreCookies(pub bool);
 
+/// Determine if the server renders text labels next to navigation icons.
+pub(crate) struct ButtonLabels(pub bool);
+
 impl Client {
     pub(crate) async fn new(store_cookies: StoreCookies) -> Self {
+        Self::with_button_labels(store_cookies, ButtonLabels(false)).await
+    }
+
+    pub(crate) async fn with_button_labels(
+        store_cookies: StoreCookies,
+        button_labels: ButtonLabels,
+    ) -> Self {
         let (db, handler) = Database::new(db::Open::Memory).expect("open memory database");
         let cache = Cache::new(NonZeroUsize::new(128).unwrap()).unwrap();
         let key = Key::generate();
@@ -34,6 +44,7 @@ impl Client {
             Theme::Ayu,
             expirations,
             1024 * 1024,
+            button_labels.0,
         ));
         let state = crate::AppState {
             db,

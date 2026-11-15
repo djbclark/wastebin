@@ -8,8 +8,8 @@ use std::time::Duration;
 use axum_extra::extract::cookie::Key;
 
 use wastebin_core::env::vars::{
-    self, ADDRESS_PORT, BASE_URL, CACHE_SIZE, DATABASE_PATH, HTTP_TIMEOUT, MAX_BODY_SIZE,
-    PASTE_EXPIRATIONS, SIGNING_KEY,
+    self, ADDRESS_PORT, BASE_URL, BUTTON_LABELS, CACHE_SIZE, DATABASE_PATH, HTTP_TIMEOUT,
+    MAX_BODY_SIZE, PASTE_EXPIRATIONS, SIGNING_KEY,
 };
 use wastebin_core::{db, expiration};
 use wastebin_highlight::{Theme, theme::ParseThemeNameError};
@@ -38,6 +38,8 @@ pub(crate) enum Error {
     ParsePasteExpiration(#[from] expiration::Error),
     #[error("failed to parse theme name")]
     ParseTheme(#[from] ParseThemeNameError),
+    #[error("failed to parse {BUTTON_LABELS}, expected `true` or `false`")]
+    ButtonLabels,
     #[error("binding to both TCP and Unix socket is not possible")]
     BothListeners,
 }
@@ -66,6 +68,19 @@ pub fn title() -> String {
 
 pub fn theme() -> Result<Theme, Error> {
     Ok(std::env::var(vars::THEME).map_or_else(|_| Ok(Theme::Ayu), |var| var.parse())?)
+}
+
+/// Whether to show text labels next to the navigation icons, off by default.
+pub fn button_labels() -> Result<bool, Error> {
+    std::env::var(vars::BUTTON_LABELS).map_or(Ok(false), |var| parse_bool(&var))
+}
+
+fn parse_bool(value: &str) -> Result<bool, Error> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "true" | "1" | "yes" | "on" => Ok(true),
+        "false" | "0" | "no" | "off" | "" => Ok(false),
+        _ => Err(Error::ButtonLabels),
+    }
 }
 
 pub fn cache_size() -> Result<NonZeroUsize, Error> {
@@ -159,4 +174,22 @@ pub fn expiration_set() -> Result<expiration::ExpirationSet, Error> {
     )?;
 
     Ok(set)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_button_labels() {
+        for value in ["true", "TRUE", "1", "yes", "on", " true "] {
+            assert!(parse_bool(value).unwrap(), "{value}");
+        }
+
+        for value in ["false", "False", "0", "no", "off", ""] {
+            assert!(!parse_bool(value).unwrap(), "{value}");
+        }
+
+        assert!(parse_bool("maybe").is_err());
+    }
 }
