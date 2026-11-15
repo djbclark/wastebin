@@ -8,6 +8,8 @@ pub mod vars {
     pub const BUTTON_LABELS: &str = "WASTEBIN_BUTTON_LABELS";
     /// Number of cached items.
     pub const CACHE_SIZE: &str = "WASTEBIN_CACHE_SIZE";
+    /// Keep the new-paste form's draft in the browser's session storage.
+    pub const DRAFT_AUTOSAVE: &str = "WASTEBIN_DRAFT_AUTOSAVE";
     /// Path to the database file.
     pub const DATABASE_PATH: &str = "WASTEBIN_DATABASE_PATH";
     /// Time before a request times out.

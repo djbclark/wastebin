@@ -8,8 +8,8 @@ use std::time::Duration;
 use axum_extra::extract::cookie::Key;
 
 use wastebin_core::env::vars::{
-    self, ADDRESS_PORT, BASE_URL, BUTTON_LABELS, CACHE_SIZE, DATABASE_PATH, HTTP_TIMEOUT,
-    MAX_BODY_SIZE, PASTE_EXPIRATIONS, SIGNING_KEY,
+    self, ADDRESS_PORT, BASE_URL, BUTTON_LABELS, CACHE_SIZE, DATABASE_PATH, DRAFT_AUTOSAVE,
+    HTTP_TIMEOUT, MAX_BODY_SIZE, PASTE_EXPIRATIONS, SIGNING_KEY,
 };
 use wastebin_core::{db, expiration};
 use wastebin_highlight::{Theme, theme::ParseThemeNameError};
@@ -40,6 +40,8 @@ pub(crate) enum Error {
     ParseTheme(#[from] ParseThemeNameError),
     #[error("failed to parse {BUTTON_LABELS}, expected `true` or `false`")]
     ButtonLabels,
+    #[error("failed to parse {DRAFT_AUTOSAVE}, expected `true` or `false`")]
+    DraftAutosave,
     #[error("binding to both TCP and Unix socket is not possible")]
     BothListeners,
 }
@@ -72,14 +74,23 @@ pub fn theme() -> Result<Theme, Error> {
 
 /// Whether to show text labels next to the navigation icons, off by default.
 pub fn button_labels() -> Result<bool, Error> {
-    std::env::var(vars::BUTTON_LABELS).map_or(Ok(false), |var| parse_bool(&var))
+    std::env::var(vars::BUTTON_LABELS)
+        .map_or(Ok(false), |var| parse_bool(&var).ok_or(Error::ButtonLabels))
 }
 
-fn parse_bool(value: &str) -> Result<bool, Error> {
+/// Whether the new-paste form keeps its draft in the browser's session storage, off by default.
+pub fn draft_autosave() -> Result<bool, Error> {
+    std::env::var(vars::DRAFT_AUTOSAVE).map_or(Ok(false), |var| {
+        parse_bool(&var).ok_or(Error::DraftAutosave)
+    })
+}
+
+/// Parse a boolean flag such as `true`, `1`, `yes` or `on`.
+fn parse_bool(value: &str) -> Option<bool> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "true" | "1" | "yes" | "on" => Ok(true),
-        "false" | "0" | "no" | "off" | "" => Ok(false),
-        _ => Err(Error::ButtonLabels),
+        "true" | "1" | "yes" | "on" => Some(true),
+        "false" | "0" | "no" | "off" | "" => Some(false),
+        _ => None,
     }
 }
 
@@ -181,15 +192,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_button_labels() {
+    fn parse_bool_values() {
         for value in ["true", "TRUE", "1", "yes", "on", " true "] {
-            assert!(parse_bool(value).unwrap(), "{value}");
+            assert_eq!(parse_bool(value), Some(true), "{value}");
         }
 
         for value in ["false", "False", "0", "no", "off", ""] {
-            assert!(!parse_bool(value).unwrap(), "{value}");
+            assert_eq!(parse_bool(value), Some(false), "{value}");
         }
 
-        assert!(parse_bool("maybe").is_err());
+        assert_eq!(parse_bool("maybe"), None);
     }
 }

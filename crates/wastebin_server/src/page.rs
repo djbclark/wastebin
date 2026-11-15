@@ -12,6 +12,7 @@ pub(crate) struct Assets {
     pub paste_js: Asset,
     pub burn_js: Asset,
     pub password_toggle_js: Asset,
+    pub draft_js: Asset,
 }
 
 pub(crate) struct Page {
@@ -23,6 +24,8 @@ pub(crate) struct Page {
     pub max_body_size: usize,
     /// Show text labels next to the navigation icons.
     pub button_labels: bool,
+    /// Keep the new-paste form's draft in the browser's session storage.
+    pub draft_autosave: bool,
 }
 
 impl Page {
@@ -36,6 +39,7 @@ impl Page {
         expirations: ExpirationSet,
         max_body_size: usize,
         button_labels: bool,
+        draft_autosave: bool,
     ) -> Self {
         let assets = Assets::new(theme);
         let expirations = expirations.into_inner();
@@ -48,6 +52,7 @@ impl Page {
             expirations,
             max_body_size,
             button_labels,
+            draft_autosave,
         }
     }
 }
@@ -81,6 +86,11 @@ impl Assets {
                 "password-toggle",
                 Kind::Js,
                 include_bytes!("javascript/password-toggle.js").to_vec(),
+            ),
+            draft_js: Asset::new(
+                "draft",
+                Kind::Js,
+                include_bytes!("javascript/draft.js").to_vec(),
             ),
         }
     }

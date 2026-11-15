@@ -25,14 +25,32 @@ pub(crate) struct StoreCookies(pub bool);
 /// Determine if the server renders text labels next to navigation icons.
 pub(crate) struct ButtonLabels(pub bool);
 
+/// Determine if the server keeps drafts of the new-paste form, see [`page::Page::draft_autosave`].
+pub(crate) struct DraftAutosave(pub bool);
+
 impl Client {
     pub(crate) async fn new(store_cookies: StoreCookies) -> Self {
-        Self::with_button_labels(store_cookies, ButtonLabels(false)).await
+        Self::with_options(store_cookies, ButtonLabels(false), DraftAutosave(false)).await
     }
 
     pub(crate) async fn with_button_labels(
         store_cookies: StoreCookies,
         button_labels: ButtonLabels,
+    ) -> Self {
+        Self::with_options(store_cookies, button_labels, DraftAutosave(false)).await
+    }
+
+    pub(crate) async fn with_draft_autosave(
+        store_cookies: StoreCookies,
+        draft_autosave: DraftAutosave,
+    ) -> Self {
+        Self::with_options(store_cookies, ButtonLabels(false), draft_autosave).await
+    }
+
+    pub(crate) async fn with_options(
+        store_cookies: StoreCookies,
+        button_labels: ButtonLabels,
+        draft_autosave: DraftAutosave,
     ) -> Self {
         let (db, handler) = Database::new(db::Open::Memory).expect("open memory database");
         let cache = Cache::new(NonZeroUsize::new(128).unwrap()).unwrap();
@@ -45,6 +63,7 @@ impl Client {
             expirations,
             1024 * 1024,
             button_labels.0,
+            draft_autosave.0,
         ));
         let state = crate::AppState {
             db,
