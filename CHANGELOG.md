@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add `WASTEBIN_DRAFT_AUTOSAVE` to keep the new-paste form's text, title,
+  language and expiry in the tab's session storage, so a reload or a detour
+  through an authenticating proxy does not lose the draft. Passwords and the
+  encryption and burn toggles are never stored. Disabled by default.
+
 ### Fixed
 
 - Reject off-origin and scheme-relative `Referer` values when redirecting back

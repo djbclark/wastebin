@@ -202,6 +202,7 @@ run-time behavior:
 | `WASTEBIN_BASE_URL`               | Base URL for the QR code display.                             |                       |
 | `WASTEBIN_CACHE_SIZE`             | Number of rendered items to cache.                            | `128`                 |
 | `WASTEBIN_DATABASE_PATH`          | Path to the sqlite3 database file.                            | `:memory:`            |
+| `WASTEBIN_DRAFT_AUTOSAVE`         | Keep the new-paste form's text, title, language and expiry in the browser's session storage while typing and restore them when the form loads again, one of `true` or `false`. Passwords and the encryption and burn toggles are never stored. The draft is removed once a paste was created. | `false` |
 | `WASTEBIN_HTTP_TIMEOUT`           | Maximum number of seconds a request is processed until wastebin responds with 408. | `5` |
 | `WASTEBIN_MAX_BODY_SIZE`          | Number of bytes to accept for POST requests.                  | `1048576`, i.e. 1 MB  |
 | `WASTEBIN_PASSWORD_SALT`          | Salt used to hash user passwords used for encrypting pastes.  | `somesalt`            |

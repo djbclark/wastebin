@@ -3,6 +3,7 @@
 {% block head %}
 <script defer src="{{ page.assets.index_js.route() }}"></script>
 <script defer src="{{ page.assets.password_toggle_js.route() }}"></script>
+{% if page.draft_autosave %}<script defer src="{{ page.assets.draft_js.route() }}"></script>{% endif %}
 {% endblock %}
 
 {% block body %}

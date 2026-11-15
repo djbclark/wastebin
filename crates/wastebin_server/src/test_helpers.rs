@@ -22,8 +22,18 @@ pub(crate) struct Client {
 /// Determine if the client should store cookies.
 pub(crate) struct StoreCookies(pub bool);
 
+/// Determine if the server keeps drafts of the new-paste form, see [`page::Page::draft_autosave`].
+pub(crate) struct DraftAutosave(pub bool);
+
 impl Client {
     pub(crate) async fn new(store_cookies: StoreCookies) -> Self {
+        Self::with_draft_autosave(store_cookies, DraftAutosave(false)).await
+    }
+
+    pub(crate) async fn with_draft_autosave(
+        store_cookies: StoreCookies,
+        draft_autosave: DraftAutosave,
+    ) -> Self {
         let (db, handler) = Database::new(db::Open::Memory).expect("open memory database");
         let cache = Cache::new(NonZeroUsize::new(128).unwrap()).unwrap();
         let key = Key::generate();
@@ -34,6 +44,7 @@ impl Client {
             Theme::Ayu,
             expirations,
             1024 * 1024,
+            draft_autosave.0,
         ));
         let state = crate::AppState {
             db,

@@ -1,4 +1,9 @@
 {% extends "base.html" %}
+
+{% block head %}
+{% if page.draft_autosave %}<script defer src="{{ page.assets.draft_js.route() }}"></script>{% endif %}
+{% endblock %}
+
 {% block content %}
 <div class="flex-center">
   <div class="dialog">

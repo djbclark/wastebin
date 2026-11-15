@@ -190,6 +190,7 @@ fn make_app(state: AppState, timeout: Duration, max_body_size: usize) -> Router 
         &state.page.assets.paste_js,
         &state.page.assets.burn_js,
         &state.page.assets.password_toggle_js,
+        &state.page.assets.draft_js,
     ];
 
     let mut app = Router::new();
@@ -248,6 +249,7 @@ async fn start() -> Result<(), Box<dyn std::error::Error>> {
     let expirations = env::expiration_set()?;
     let theme = env::theme()?;
     let title = env::title();
+    let draft_autosave = env::draft_autosave()?;
 
     let cache = Cache::new(cache_size)?;
     let (db, db_handler) = Database::new(method)?;
@@ -263,6 +265,7 @@ async fn start() -> Result<(), Box<dyn std::error::Error>> {
         theme,
         expirations,
         max_body_size,
+        draft_autosave,
     ));
     let highlighter = Arc::new(wastebin_highlight::Highlighter::default());
     let state = AppState {

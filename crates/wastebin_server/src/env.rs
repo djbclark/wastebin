@@ -8,8 +8,8 @@ use std::time::Duration;
 use axum_extra::extract::cookie::Key;
 
 use wastebin_core::env::vars::{
-    self, ADDRESS_PORT, BASE_URL, CACHE_SIZE, DATABASE_PATH, HTTP_TIMEOUT, MAX_BODY_SIZE,
-    PASTE_EXPIRATIONS, SIGNING_KEY,
+    self, ADDRESS_PORT, BASE_URL, CACHE_SIZE, DATABASE_PATH, DRAFT_AUTOSAVE, HTTP_TIMEOUT,
+    MAX_BODY_SIZE, PASTE_EXPIRATIONS, SIGNING_KEY,
 };
 use wastebin_core::{db, expiration};
 use wastebin_highlight::{Theme, theme::ParseThemeNameError};
@@ -38,6 +38,8 @@ pub(crate) enum Error {
     ParsePasteExpiration(#[from] expiration::Error),
     #[error("failed to parse theme name")]
     ParseTheme(#[from] ParseThemeNameError),
+    #[error("failed to parse {DRAFT_AUTOSAVE}, expected `true` or `false`")]
+    DraftAutosave,
     #[error("binding to both TCP and Unix socket is not possible")]
     BothListeners,
 }
@@ -66,6 +68,22 @@ pub fn title() -> String {
 
 pub fn theme() -> Result<Theme, Error> {
     Ok(std::env::var(vars::THEME).map_or_else(|_| Ok(Theme::Ayu), |var| var.parse())?)
+}
+
+/// Whether the new-paste form keeps its draft in the browser's session storage, off by default.
+pub fn draft_autosave() -> Result<bool, Error> {
+    std::env::var(vars::DRAFT_AUTOSAVE).map_or(Ok(false), |var| {
+        parse_bool(&var).ok_or(Error::DraftAutosave)
+    })
+}
+
+/// Parse a boolean flag such as `true`, `1`, `yes` or `on`.
+fn parse_bool(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "true" | "1" | "yes" | "on" => Some(true),
+        "false" | "0" | "no" | "off" | "" => Some(false),
+        _ => None,
+    }
 }
 
 pub fn cache_size() -> Result<NonZeroUsize, Error> {
@@ -159,4 +177,22 @@ pub fn expiration_set() -> Result<expiration::ExpirationSet, Error> {
     )?;
 
     Ok(set)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_bool_values() {
+        for value in ["true", "TRUE", "1", "yes", "on", " true "] {
+            assert_eq!(parse_bool(value), Some(true), "{value}");
+        }
+
+        for value in ["false", "False", "0", "no", "off", ""] {
+            assert_eq!(parse_bool(value), Some(false), "{value}");
+        }
+
+        assert_eq!(parse_bool("maybe"), None);
+    }
 }

@@ -13,6 +13,7 @@
 
 {% block head %}
 <script defer src="{{ page.assets.paste_js.route() }}"></script>
+{% if page.draft_autosave %}<script defer src="{{ page.assets.draft_js.route() }}"></script>{% endif %}
 {% endblock %}
 
 {% block body_attrs %} data-paste-id="{{ key }}"{% endblock %}
